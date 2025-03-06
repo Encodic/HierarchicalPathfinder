@@ -13,8 +13,23 @@ enum EHierarchicalPF_State
 	Initialised,
 	GridGenerationDataReady,
 	GridReady,
+	ClustersReady,
 	NodeDataReady,
 	PathfinderVolumeReady
+};
+
+USTRUCT()
+struct FNavCluster
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	TMap<FName, FIntVector2> ClusterNeighbours;
+
+	UPROPERTY()
+	TArray<FIntVector2> ClusterNodeChildren;
+	
 };
 
 USTRUCT()
@@ -24,7 +39,13 @@ struct FNavNode
 
 public:
 	UPROPERTY()
-	int HierarchicalParentID = 0;
+	FIntVector2 NodeCoords;
+	
+	UPROPERTY()
+	FIntVector2 ClusterID;
+
+	UPROPERTY()
+	int RegionID;
 
 	UPROPERTY()
 	TMap<FName, FIntVector2> NodeNeighbours;
@@ -55,32 +76,50 @@ public:
 	bool GenerateNavVolume();
 	bool GenerateGridData();
 	bool PopulateNavGrid();
+	bool GenerateNavClusters();
 	bool GenerateNodeData();
 	
 	TMap<FName, FIntVector2> GetNodeNeighbours(const FIntVector2 Node) const;
 	FVector2D GetNodeOffset(const FIntVector2 Node) const;
+	FIntVector2 GetNodeClusterID(const FIntVector2 Node) const;
 	
 
 	FVector GetNodeWorldLocation(const FIntVector2 Node);
 	FVector NodeOffsetToWorld(const FVector NodeOffset) const;
 	static FVector RotateVectorAroundPivot(FVector InVector, FRotator Rotation, FVector Pivot);
 
-	void DrawNode(const FIntVector2 Node);
-	
+	// Setup
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PathfinderSystemSetup")
-	float NodeSize = 50.0f;
+	float NodeSize = 50.0f; // Determines size of a node.
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PathfinderSystemSetup")
+	int ClusterSize = 8; // Determines size of a cluster. Example '8' will be a cluster of nodes in a 8x8 grid.
+
+	// Debugging
+	
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PathfinderSystemSetup|Debug")
 	bool bDebug = false;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PathfinderSystemSetup|Debug|Node")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PathfinderSystemSetup|Debug|Nodes")
 	bool bDrawNodes = false;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PathfinderSystemSetup|Debug|Node")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PathfinderSystemSetup|Debug|Nodes")
 	float DrawNodeTime = 5.0f;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PathfinderSystemSetup|Debug|Node")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PathfinderSystemSetup|Debug|Nodes")
 	float DrawNodeLineThickness = 2.0f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PathfinderSystemSetup|Debug|Clusters")
+	bool bDrawClusters = false;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PathfinderSystemSetup|Debug|Clusters")
+	bool bDrawClusterNodes = true;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PathfinderSystemSetup|Debug|Clusters")
+	float DrawClusterTime = 5.0f;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "PathfinderSystemSetup|Debug|Clusters")
+	float DrawClusterLineThickness = 2.0f;
 
 protected:
 	// Called when the game starts or when spawned
@@ -98,20 +137,26 @@ private:
 	EHierarchicalPF_State HPVState = NotInitialised;
 	void UpdatePFState(const EHierarchicalPF_State DesiredState);
 
+	// Used for calculating a Node's relative position
+	FVector2D GridCornerOffset2D;
+	
+	FIntVector2 GridSize;
+	
+	FIntVector2 ClusterGridSize;
+
+	TMap<FIntVector2, FNavNode> GridNodes;
+	TMap<FIntVector2, FNavCluster> NavClusters;
+
+	// Debugging
 	float PFStartTime = 0.0f;
 	float PreviousTime = 0.0f;
 	static void GetStartTime(float& Time) { Time = FPlatformTime::Seconds(); };
 	float DebugTime(float StartTime, FName ProcessName, const bool IncludeExecution) const;
 	void DebugNumNodes() const;
-
 	void DebugHPVolume();
 
-	int NumNodesX = 0;
-	int NumNodesY = 0;
+	void DrawNode(const FIntVector2 Node);
+	void DrawCluster(const FIntVector2 ClusterID);
 	
-	// Used for calculating a Node's relative position
-	FVector2D GridCornerOffset2D;
-
-	TMap<FIntVector2, FNavNode> GridNodes;
 };
 
